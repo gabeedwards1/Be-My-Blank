@@ -23,10 +23,10 @@
   h2{font-size:1.25rem; margin:0 0 8px}
   p{margin:0 0 10px}
   .sub{color:var(--muted)}
-  .row{display:grid; gap:12px; grid-template-columns:1fr 1fr 1fr}
+  .row{display:grid; gap:12px; grid-template-columns:1fr 1fr}
   .row > * {min-width:0}
   label{font-size:.9rem; color:var(--muted); display:block; margin:10px 0 6px}
-  select,input[type=date]{width:100%; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:#0d1123; color:var(--ink); outline:none}
+  input[type=date]{width:100%; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:#0d1123; color:var(--ink); outline:none}
   .chk{display:flex; gap:10px; align-items:center}
   button{
     appearance:none; border:none; cursor:pointer; border-radius:12px; padding:10px 14px; color:#000;
@@ -39,8 +39,6 @@
   .out{white-space:pre-wrap; background:#0b0f1f; border:1px dashed rgba(255,255,255,.15); padding:12px; border-radius:12px; min-height:48px}
   .muted{color:var(--muted)}
   .right{margin-left:auto}
-  .footer{margin-top:14px; font-size:.85rem; color:var(--muted)}
-  a{color:#aecdff}
   .hero h1{letter-spacing:.2px}
   .hero .badges{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
   .badge{background:#0c1021; border:1px solid rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; font-size:.85rem; color:var(--muted)}
@@ -55,30 +53,19 @@
         <em>parrot</em> for Talk Like a Pirate Day?
       </p>
       <p class="sub">
-        Pick a date, we find the holiday (official <em>and</em> ridiculous), and we auto-write a playful line like:
-        “Be my turkey 🦃 — Happy Thanksgiving!” You hit <strong>Copy</strong>, paste into whatever app, and boom:
-        seasonal romance secured.
+        Pick a date, we look up the absurd and ridiculous holiday and write a message like:
+        “Be my pi 🥧 — Happy Pi Day!” You hit <strong>Copy</strong>, paste anywhere, boom.
       </p>
-      <div class="badges">
-        <span class="badge">Zero sign-in</span>
-        <span class="badge">Copy-paste friendly</span>
-        <span class="badge">Official + “silly” holidays</span>
-        <span class="badge">Emoji-powered ✨</span>
-      </div>
     </section>
 
     <section class="card">
       <h2>Be My ___ — Holiday Message Generator</h2>
-      <p class="sub">Pick a date & country. We’ll find holidays and craft copy-paste messages.</p>
+      <p class="sub">Pick a date. We’ll pull holidays from your JSON and craft the message.</p>
 
       <div class="row" style="margin-top:6px">
         <div>
           <label for="date">Date</label>
           <input id="date" type="date" />
-        </div>
-        <div>
-          <label for="country">Country (official holidays)</label>
-          <select id="country"></select>
         </div>
         <div>
           <label>&nbsp;</label>
@@ -91,7 +78,6 @@
       </div>
 
       <div class="flex" style="margin-top:10px">
-        <label class="chk"><input type="checkbox" id="includeOfficial" checked/> <span>Include official holidays</span></label>
         <label class="chk"><input type="checkbox" id="includeFun" checked/> <span>Include “silly” holidays</span></label>
         <label class="chk"><input type="checkbox" id="bundle"/> <span>One combined message per day</span></label>
         <span class="right muted" id="status"></span>
@@ -100,7 +86,6 @@
       <div class="card" style="margin-top:14px">
         <div class="flex">
           <strong>Holidays found</strong>
-          <button id="shuffle" class="secondary right">Shuffle Emojis</button>
         </div>
         <div id="holidays" class="list" style="margin-top:10px"></div>
       </div>
@@ -115,215 +100,208 @@
         </div>
         <div id="output" class="out" style="margin-top:10px"></div>
       </div>
-
-      <div class="footer">
-        Sources: Official holidays from <a href="https://date.nager.at/API" target="_blank" rel="noreferrer">Nager.Date API</a>.
-        “Silly” holidays from a tiny built-in list you can extend.
-      </div>
     </section>
   </div>
 
 <script>
-/* ---------- data & mappings ---------- */
-const COUNTRY_LIST=[["US","United States"],["CA","Canada"],["GB","United Kingdom"],["AU","Australia"],["IE","Ireland"],["DE","Germany"],["FR","France"]];
-const FUN_HOLIDAYS={"01-01":["New Year’s Day (Fun)","Bloody Mary Day"],"02-14":["Valentine’s (Fun)","International Book Giving Day"],"03-14":["Pi Day","Potato Chip Day"],"03-17":["St. Patrick’s (Fun)"],"04-01":["April Fools’ Day"],"05-04":["Star Wars Day"],"06-01":["Say Something Nice Day"],"09-19":["Talk Like a Pirate Day"],"10-09":["Leif Erikson Day"],"10-31":["Halloween (Fun)"],"11-13":["World Kindness Day"],"11-23":["Espresso Day"],"12-25":["Christmas (Fun)"]};
-const TEMPLATES={"st patrick":"shamrock","leif erikson":"viking","valentine":"valentine","thanksgiving":"turkey","halloween":"pumpkin","christmas":"tree","new year":"firework","talk like a pirate":"parrot","pi":"pi","coffee":"coffee","espresso":"coffee","donut":"donut","pizza":"pizza","taco":"taco"};
-const EMOJI={shamrock:["☘️","🍀"],viking:["🛡️","⚔️","🪖"],valentine:["💘","💖","💌"],turkey:["🦃","🍗"],pumpkin:["🎃"],tree:["🎄","🌲"],firework:["🎆","🎇"],parrot:["🦜","🏴‍☠️"],pi:["🥧","🔢"],coffee:["☕️","💤"],donut:["🍩"],pizza:["🍕"],taco:["🌮"],default:["🎉","🎈","✨","🥳","🌟","😊","💫"]};
+/* ---------- minimal built-in fun map as fallback ---------- */
+const FUN_HOLIDAYS_MIN = {
+  "01-01":["New Year’s Day (Fun)","Bloody Mary Day"],
+  "02-14":["Valentine’s (Fun)","International Book Giving Day"],
+  "03-14":["Pi Day","Potato Chip Day"],
+  "03-17":["St. Patrick’s (Fun)"],
+  "04-01":["April Fools’ Day"],
+  "05-04":["Star Wars Day"],
+  "06-01":["Say Something Nice Day"],
+  "09-19":["Talk Like a Pirate Day"],
+  "10-09":["Leif Erikson Day"],
+  "10-31":["Halloween (Fun)"],
+  "11-13":["World Kindness Day"],
+  "11-23":["Espresso Day"],
+  "12-25":["Christmas (Fun)"]
+};
 
-/* ---------- local-date utils (no UTC) ---------- */
+/* ---------- local-date utils ---------- */
 function toYMDLocal(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
-function toMMDDLocal(d){const m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${m}-${day}`;}
 function fromInputLocal(v){if(!v)return new Date();const [y,m,d]=v.split('-').map(Number);return new Date(y,m-1,d,12,0,0);}
 function todayInputValue(){return toYMDLocal(new Date());}
-function titleCase(s){return s.replace(/\b([a-z])/g,m=>m.toUpperCase());}
+function titleCase(s){return (s||"").replace(/\b([a-z])/g,m=>m.toUpperCase());}
 function ymdToLocalDate(ymd){const [y,m,d]=ymd.split('-').map(Number);return new Date(y,m-1,d,12,0,0);}
 
 /* ---------- DOM ---------- */
 const dateEl=document.getElementById('date');
-const countryEl=document.getElementById('country');
 const statusEl=document.getElementById('status');
 const holidaysEl=document.getElementById('holidays');
 const outputEl=document.getElementById('output');
-const includeOfficialEl=document.getElementById('includeOfficial');
 const includeFunEl=document.getElementById('includeFun');
 const bundleEl=document.getElementById('bundle');
 dateEl.value=todayInputValue();
-COUNTRY_LIST.forEach(([c,n])=>{const o=document.createElement('option');o.value=c;o.textContent=`${n} (${c})`;countryEl.appendChild(o);});
 
-/* ---------- official holiday cache ---------- */
-const OFFICIAL_CACHE = new Map(); // key: `${year}:${country}` -> Set(ymd strings)
-async function getOfficialSet(year,country){
-  const key=`${year}:${country}`;
-  if(OFFICIAL_CACHE.has(key)) return OFFICIAL_CACHE.get(key);
-  const url=`https://date.nager.at/api/v3/PublicHolidays/${year}/${country}`;
-  const res=await fetch(url,{mode:'cors'});
-  if(!res.ok) throw new Error('Nager.Date fetch failed');
-  const data=await res.json();
-  const set=new Set(data.map(h=>h.date)); // h.date already "YYYY-MM-DD"
-  OFFICIAL_CACHE.set(key,set);
-  return set;
-}
+/* ---------- JSON stores ---------- */
+let FUN_BY_DATE = {};             // from fun_holidays_by_date.json (keyed YYYY-MM-DD)
+let HOLIDAY_EMOJIS = {};          // from holiday_emojis_2025.json (per-date emoji picks)
+let EMOJI_DATA = [];              // optional Unicode list (fallback)
 
-/* ---------- fun holiday set for a given year ---------- */
-function getFunSetForYear(year){
-  const set=new Set();
-  for(const mmdd of Object.keys(FUN_HOLIDAYS)){
-    set.add(`${year}-${mmdd}`);
-  }
-  return set;
-}
-
-/* ---------- build eligible dates respecting toggles ---------- */
-async function getEligibleDates(year,country,{official,fun}){
-  const out=new Set();
-  if(fun){ for(const d of getFunSetForYear(year)) out.add(d); }
-  if(official){
-    try{
-      const off=await getOfficialSet(year,country);
-      for(const d of off) out.add(d);
-    }catch(e){
-      // if official fetch fails, we just skip official side
-      console.warn(e);
-    }
-  }
-  return [...out].sort(); // array of ymd strings
-}
-
-/* ---------- per-day fetch & generate ---------- */
-async function fetchOfficialForDate(dateLocal,country){
-  const y=dateLocal.getFullYear();
-  const set=await getOfficialSet(y,country);
-  const ymd=toYMDLocal(dateLocal);
-  // We need names, not just dates; fetch list again here and filter for names (kept as before for simplicity)
-  const url=`https://date.nager.at/api/v3/PublicHolidays/${y}/${country}`;
-  const res=await fetch(url,{mode:'cors'});
-  if(!res.ok) throw new Error('Nager.Date list failed');
-  const all=await res.json();
-  return all.filter(h=>h.date===ymd).map(h=>h.name);
-}
-function fetchFun(dateLocal){return (FUN_HOLIDAYS[toMMDDLocal(dateLocal)]||[]).slice();}
-
-function nounFromName(n){
-  const low=n.toLowerCase();
-  for(const k in TEMPLATES){ if(low.includes(k)) return TEMPLATES[k]; }
-  const t=low.match(/[a-z]+/g)||[];
-  for(let i=t.length-1;i>=0;i--){
-    if(["day","week","month","international","national","world","the"].includes(t[i])) continue;
-    return t[i];
-  }
-  return "hero";
-}
-function pickEmojis(noun){
-  const arr=EMOJI[noun]||EMOJI.default;
-  const copy=arr.slice();
-  const n=Math.min(2,Math.max(1,Math.floor(Math.random()*2)+1));
-  return Array.from({length:n},()=>copy[Math.floor(Math.random()*copy.length)]).join(" ");
-}
-function craftMessage(name){
-  const noun=nounFromName(name);
-  return `Be my ${titleCase(noun)} ${pickEmojis(noun)} — Happy ${name}!`;
-}
-
-async function generate(){
-  statusEl.textContent="Fetching…";holidaysEl.innerHTML="";outputEl.textContent="";
-  const dateLocal=fromInputLocal(dateEl.value);
-  const country=countryEl.value||"US";
-  let names=new Set();
-
+/* ---------- loaders ---------- */
+async function loadFunJson(){
   try{
-    if(includeOfficialEl.checked){
-      (await fetchOfficialForDate(dateLocal,country)).forEach(n=>names.add(n));
-    }
+    const res = await fetch('./fun_holidays_by_date.json', {cache:'no-store'});
+    FUN_BY_DATE = await res.json();
+    console.log(`Loaded ${Object.keys(FUN_BY_DATE).length} fun-holiday dates.`);
   }catch(e){
-    console.warn(e);
-    statusEl.textContent="Official holidays unavailable; showing fun holidays only.";
+    console.warn("fun_holidays_by_date.json not found; will fall back to built-in minimal map.", e);
   }
-  if(includeFunEl.checked){ fetchFun(dateLocal).forEach(n=>names.add(n)); }
+}
+async function loadHolidayEmojiJson(){
+  try{
+    const res = await fetch('./holiday_emojis_2025.json', {cache:'no-store'});
+    HOLIDAY_EMOJIS = await res.json();
+    console.log(`Loaded ${Object.keys(HOLIDAY_EMOJIS).length} holiday emoji dates.`);
+  }catch(e){
+    console.warn("holiday_emojis_2025.json not found; emoji will be generated via fallback.", e);
+  }
+}
+async function loadUnicodeEmoji(){
+  try{
+    const res = await fetch('./emoji.json', {cache:'no-store'});
+    EMOJI_DATA = await res.json();
+    console.log(`Loaded ${EMOJI_DATA.length} Unicode emojis for fallback.`);
+  }catch(e){
+    console.warn("emoji.json not found; using default fallback emojis only.", e);
+  }
+}
 
-  const list=[...names];
-  if(list.length===0){
-    holidaysEl.innerHTML="<div class='muted'>No holidays found for this date.</div>";
-    outputEl.textContent=""; statusEl.textContent="";
+/* ---------- emoji helpers ---------- */
+function tokenize(s){return (s||"").toLowerCase().replace(/['’]/g,"").match(/[a-z0-9]+/g)||[];}
+function bestEmojisFromUnicode(name, maxEmojis=2){
+  if(!EMOJI_DATA.length) return ["🎉","🥳"];
+  const query = tokenize(name).filter(w=>!["day","week","month","national","international","world","the","of","and"].includes(w));
+  const scored=[];
+  for(const e of EMOJI_DATA){
+    const n=tokenize(e.name), sg=tokenize(e.subgroup), g=tokenize(e.group);
+    let score=0;
+    for(const w of query){
+      if(n.includes(w)) score+=5; else if(sg.includes(w)) score+=3; else if(g.includes(w)) score+=2;
+    }
+    if(score>0) scored.push({emoji:e.emoji,score});
+  }
+  if(!scored.length) return ["🎉"];
+  scored.sort((a,b)=>b.score-a.score);
+  const out=[], seen=new Set();
+  for(const s of scored){ if(!seen.has(s.emoji)){ out.push(s.emoji); seen.add(s.emoji); if(out.length>=maxEmojis) break; } }
+  return out.length?out:["🎉"];
+}
+
+/* ---------- data fetchers (local only) ---------- */
+function funNamesForDate(dateLocal){
+  const ymd = toYMDLocal(dateLocal);
+  const mmdd = ymd.slice(5);
+  const fromFile = FUN_BY_DATE[ymd] || [];
+  const builtin = FUN_HOLIDAYS_MIN[mmdd] || [];
+  // If "Include silly" unchecked, return empty (lets user preview “none”)
+  if(!includeFunEl.checked) return [];
+  return [...fromFile, ...builtin].filter((v,i,a)=>a.indexOf(v)===i); // de-dupe
+}
+
+/* ---------- emoji selection per holiday ---------- */
+function emojisForHoliday(ymd, name){
+  // 1) Pre-generated per-date JSON (highest priority)
+  const items = HOLIDAY_EMOJIS[ymd];
+  if(items){
+    const hit = items.find(it => (it.name||"").toLowerCase() === (name||"").toLowerCase());
+    if(hit && hit.emojis){
+      // If file stored a string, return as tokens; if array, join
+      if (Array.isArray(hit.emojis)) return hit.emojis;
+      return String(hit.emojis).split(/\s+/).filter(Boolean);
+    }
+  }
+  // 2) Unicode fallback scoring
+  return bestEmojisFromUnicode(name, 2);
+}
+
+/* ---------- message crafting ---------- */
+function nounFromName(n){
+  const parts = (n||"").toLowerCase().match(/[a-z]+/g) || [];
+  // skip common stopwords
+  for(let i=0;i<parts.length;i++){
+    const w = parts[i];
+    if(["day","week","month","international","national","world","the","of","and","to","your"].includes(w)) continue;
+    return w;
+  }
+  return "friend";
+}
+function craftMessage(ymd, name){
+  const noun = titleCase(nounFromName(name));
+  const ems = emojisForHoliday(ymd, name).slice(0,2).join(" ");
+  return `Be my ${noun} ${ems} — Happy ${name}!`;
+}
+
+/* ---------- core generate ---------- */
+async function generate(){
+  statusEl.textContent="Generating…";
+  holidaysEl.innerHTML="";
+  outputEl.textContent="";
+
+  const dateLocal = fromInputLocal(dateEl.value);
+  const ymd = toYMDLocal(dateLocal);
+
+  const names = funNamesForDate(dateLocal);
+  if(!names.length){
+    holidaysEl.innerHTML = "<div class='muted'>No holidays found for this date.</div>";
+    statusEl.textContent = "";
     return;
   }
 
-  list.forEach(n=>{
+  // pills
+  names.forEach(n=>{
     const el=document.createElement('span'); el.className='pill'; el.textContent=n;
     holidaysEl.appendChild(el);
   });
 
-  let messages=list.map(craftMessage);
-  if(bundleEl.checked){ messages=[list.map(n=>`• ${craftMessage(n)}`).join("\n")]; }
-  outputEl.textContent=messages.join("\n\n");
-  statusEl.textContent=`Generated ${messages.length} message${messages.length>1?'s':''}.`;
+  // messages
+  let messages = names.map(n => craftMessage(ymd, n));
+  if(bundleEl.checked){
+    messages = [ names.map(n => "• " + craftMessage(ymd, n)).join("\n") ];
+  }
+  outputEl.textContent = messages.join("\n\n");
+  statusEl.textContent = `Generated ${messages.length} message${messages.length>1?'s':''}.`;
 }
 
+/* ---------- copy / shuffle / random ---------- */
 function copyOut(){
-  const text=outputEl.textContent.trim(); if(!text) return;
+  const text = outputEl.textContent.trim(); if(!text) return;
   navigator.clipboard.writeText(text).then(()=>{ statusEl.textContent="Copied ✅"; });
 }
 
-/* ---------- Random Holiday (only valid dates) ---------- */
-document.getElementById('random').addEventListener('click', async ()=>{
-  statusEl.textContent="Finding a holiday day…";
-  const year = new Date().getFullYear();
-  const country = countryEl.value || "US";
-  const useOfficial = includeOfficialEl.checked;
-  const useFun = includeFunEl.checked;
 
-  const eligible = await getEligibleDates(year, country, {official: useOfficial, fun: useFun});
-  if(eligible.length === 0){
-    statusEl.textContent = "No eligible holiday dates found with current filters.";
-    return;
+document.getElementById('random').addEventListener('click', async ()=>{
+  statusEl.textContent = "Picking a holiday date…";
+  // Prefer dates present in FUN_BY_DATE; if empty, synthesize from the minimal map for this year
+  let eligible = Object.keys(FUN_BY_DATE);
+  if(!eligible.length){
+    const year = new Date().getFullYear();
+    eligible = Object.keys(FUN_HOLIDAYS_MIN).map(mmdd => `${year}-${mmdd}`);
   }
+  if(!eligible.length){ statusEl.textContent = "No dates available."; return; }
   const pick = eligible[Math.floor(Math.random()*eligible.length)];
-  dateEl.value = pick; // already YYYY-MM-DD
+  dateEl.value = pick;
   statusEl.textContent = `Random holiday picked: ${ymdToLocalDate(pick).toDateString()}`;
   generate();
 });
 
-/* ---------- wiring ---------- */
-document.getElementById('go').addEventListener('click',generate);
-document.getElementById('today').addEventListener('click',()=>{dateEl.value=todayInputValue();generate();});
-document.getElementById('shuffle').addEventListener('click',()=>{
-  const pills=[...document.querySelectorAll('.pill')].map(p=>p.textContent);
-  if(!pills.length) return;
-  let messages=pills.map(craftMessage);
-  if(bundleEl.checked) messages=[pills.map(n=>`• ${craftMessage(n)}`).join("\n")];
-  outputEl.textContent=messages.join("\n\n");
-  statusEl.textContent="Refreshed 🎲";
-});
-/* ---------- load full fun-holiday JSON (from timeanddate) ---------- */
-let FUN_BY_DATE = {};
+/* ---------- events ---------- */
+document.getElementById('go').addEventListener('click', generate);
+document.getElementById('today').addEventListener('click', ()=>{ dateEl.value=todayInputValue(); generate(); });
+document.getElementById('copy').addEventListener('click', copyOut);
+document.getElementById('regenerate').addEventListener('click', generate);
 
-async function loadFunJson(){
-  try {
-    const res = await fetch('./fun_holidays_by_date.json', {cache:'no-store'});
-    FUN_BY_DATE = await res.json();
-    console.log(`Loaded ${Object.keys(FUN_BY_DATE).length} fun-holiday dates.`);
-  } catch(e){
-    console.warn("Fun JSON not found, falling back to built-ins.", e);
-  }
-}
-
-/* Replace the old fetchFun() with this one */
-function fetchFun(dateLocal){
-  const ymd = toYMDLocal(dateLocal);
-  const mmdd = ymd.slice(5); // "MM-DD"
-  const names = FUN_BY_DATE[ymd] || (FUN_HOLIDAYS[mmdd] || []);
-  return names.slice();
-}
-
-/* Load JSON first, then generate */
-(async () => {
-  await loadFunJson();
+/* ---------- startup ---------- */
+(async()=>{
+  await loadHolidayEmojiJson();  // use the per-date emoji mapping you have
+  await loadFunJson();           // load your scraped fun-holiday dates
+  await loadUnicodeEmoji();      // optional fallback scoring
   generate();
 })();
-</script>
-</body>
-</html>
-
-generate();
 </script>
 </body>
 </html>
