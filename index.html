@@ -95,7 +95,6 @@
           <strong>Generated message(s)</strong>
           <div class="right flex">
             <button id="copy">Copy</button>
-            <button id="regenerate" class="secondary">Regenerate</button>
           </div>
         </div>
         <div id="output" class="out" style="margin-top:10px"></div>
@@ -171,6 +170,68 @@ async function loadUnicodeEmoji(){
   }
 }
 
+/* ---------- tiny NLP to pick a natural noun after “Be my …” ---------- */
+const OVERRIDE_NOUN = {
+  "Talk Like Yoda Day": "Yoda",
+  "International Talk Like a Pirate Day": "pirate",
+  "Talk Like a Pirate Day": "pirate",
+  "Pi Day": "pi",
+  "Tau Day": "tau",
+  "Festival of Sleep Day": "nap buddy",
+  "Opposite Day": "contrarian",
+  "World Kindness Day": "kindheart",
+  "Hug Your Cat Day": "cat",
+  "Towel Day": "towel",
+  "Wright Brothers Day": "aviator",
+  "Star Wars Day": "Jedi",
+  "Donut Day": "donut",
+  "Chocolate Chip Day": "cookie",
+  "International Coffee Day": "coffee"
+};
+const STOP = new Set(["day","week","month","international","world","national","the","a","an","my","your","our","of","and","or","to","in","on","for","with","at","by","like","up"]);
+
+function singularize(word){
+  if (/ies$/.test(word)) return word.replace(/ies$/,"y");
+  if (/ses$/.test(word)) return word.replace(/es$/,"");
+  if (/s$/.test(word) && !/(ss|us|is)$/.test(word)) return word.slice(0,-1);
+  return word;
+}
+function tokensFromName(name){
+  return name
+    .toLowerCase()
+    .replace(/[“”"’']/g,"")
+    .replace(/[^a-z0-9\s-]/g," ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+// Heuristics ranked by “sounds natural”:
+// 1) explicit overrides for weird/fandom days
+// 2) “… like a/an X …”  → X
+// 3) “… of X” / “… for X” → X
+// 4) rightmost meaningful token before “Day/Week/Month”
+function pickBeMyNoun(holidayName){
+  if (OVERRIDE_NOUN[holidayName]) return OVERRIDE_NOUN[holidayName];
+
+  const base = holidayName.replace(/\s+(Day|Week|Month)$/i,"");
+  const lower = base.toLowerCase();
+
+  let m = lower.match(/talk\s+like\s+(?:a|an)\s+([a-z0-9][a-z0-9\s-]*)/);
+  if (m) return titleCase(singularize(m[1].split(/\s+/)[0]));
+
+  m = lower.match(/of\s+([a-z0-9][a-z0-9\s-]*)$/);
+  if (m) return titleCase(singularize(m[1].split(/\s+/)[0]));
+
+  m = lower.match(/for\s+([a-z0-9][a-z0-9\s-]*)$/);
+  if (m) return titleCase(singularize(m[1].split(/\s+/)[0]));
+
+  const toks = tokensFromName(base).filter(t => !STOP.has(t));
+  if (toks.length){
+    const noun = singularize(toks[toks.length-1]);
+    return titleCase(noun);
+  }
+  return "buddy";
+}
+
 /* ---------- emoji helpers ---------- */
 function tokenize(s){return (s||"").toLowerCase().replace(/['’]/g,"").match(/[a-z0-9]+/g)||[];}
 function bestEmojisFromUnicode(name, maxEmojis=2){
@@ -198,40 +259,26 @@ function funNamesForDate(dateLocal){
   const mmdd = ymd.slice(5);
   const fromFile = FUN_BY_DATE[ymd] || [];
   const builtin = FUN_HOLIDAYS_MIN[mmdd] || [];
-  // If "Include silly" unchecked, return empty (lets user preview “none”)
   if(!includeFunEl.checked) return [];
   return [...fromFile, ...builtin].filter((v,i,a)=>a.indexOf(v)===i); // de-dupe
 }
 
 /* ---------- emoji selection per holiday ---------- */
 function emojisForHoliday(ymd, name){
-  // 1) Pre-generated per-date JSON (highest priority)
   const items = HOLIDAY_EMOJIS[ymd];
   if(items){
     const hit = items.find(it => (it.name||"").toLowerCase() === (name||"").toLowerCase());
     if(hit && hit.emojis){
-      // If file stored a string, return as tokens; if array, join
       if (Array.isArray(hit.emojis)) return hit.emojis;
       return String(hit.emojis).split(/\s+/).filter(Boolean);
     }
   }
-  // 2) Unicode fallback scoring
   return bestEmojisFromUnicode(name, 2);
 }
 
 /* ---------- message crafting ---------- */
-function nounFromName(n){
-  const parts = (n||"").toLowerCase().match(/[a-z]+/g) || [];
-  // skip common stopwords
-  for(let i=0;i<parts.length;i++){
-    const w = parts[i];
-    if(["day","week","month","international","national","world","the","of","and","to","your"].includes(w)) continue;
-    return w;
-  }
-  return "friend";
-}
 function craftMessage(ymd, name){
-  const noun = titleCase(nounFromName(name));
+  const noun = pickBeMyNoun(name);
   const ems = emojisForHoliday(ymd, name).slice(0,2).join(" ");
   return `Be my ${noun} ${ems} — Happy ${name}!`;
 }
@@ -267,16 +314,14 @@ async function generate(){
   statusEl.textContent = `Generated ${messages.length} message${messages.length>1?'s':''}.`;
 }
 
-/* ---------- copy / shuffle / random ---------- */
+/* ---------- copy / random ---------- */
 function copyOut(){
   const text = outputEl.textContent.trim(); if(!text) return;
   navigator.clipboard.writeText(text).then(()=>{ statusEl.textContent="Copied ✅"; });
 }
 
-
 document.getElementById('random').addEventListener('click', async ()=>{
   statusEl.textContent = "Picking a holiday date…";
-  // Prefer dates present in FUN_BY_DATE; if empty, synthesize from the minimal map for this year
   let eligible = Object.keys(FUN_BY_DATE);
   if(!eligible.length){
     const year = new Date().getFullYear();
@@ -293,12 +338,11 @@ document.getElementById('random').addEventListener('click', async ()=>{
 document.getElementById('go').addEventListener('click', generate);
 document.getElementById('today').addEventListener('click', ()=>{ dateEl.value=todayInputValue(); generate(); });
 document.getElementById('copy').addEventListener('click', copyOut);
-document.getElementById('regenerate').addEventListener('click', generate);
 
 /* ---------- startup ---------- */
 (async()=>{
-  await loadHolidayEmojiJson();  // use the per-date emoji mapping you have
-  await loadFunJson();           // load your scraped fun-holiday dates
+  await loadHolidayEmojiJson();  // per-date emoji mapping
+  await loadFunJson();           // your scraped fun-holiday dates
   await loadUnicodeEmoji();      // optional fallback scoring
   generate();
 })();
