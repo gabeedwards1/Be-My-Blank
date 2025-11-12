@@ -103,7 +103,6 @@ const COUNTRY_LIST = [
 ];
 
 const FUN_HOLIDAYS = {
-  // minimal starter set (add more!)
   "01-01": ["New Year’s Day (Fun)","Bloody Mary Day"],
   "02-14": ["Valentine’s (Fun)","International Book Giving Day"],
   "03-14": ["Pi Day","Potato Chip Day"],
@@ -140,19 +139,28 @@ const EMOJI = {
   default:["🎉","🎈","✨","🥳","🌟","😊","💫"]
 };
 
-function fmtDateInput(d=new Date()){
-  const tz = new Date().toLocaleString('en-US',{timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone});
-  const dt = new Date(tz);
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth()+1).padStart(2,"0");
-  const day = String(dt.getDate()).padStart(2,"0");
+/* ----- LOCAL-DATE UTILITIES (no UTC!) ----- */
+function toYMDLocal(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
 }
-function ymd(date){ return date.toISOString().slice(0,10); }
-function mmdd(date){
-  const m = String(date.getMonth()+1).padStart(2,"0");
-  const d = String(date.getDate()).padStart(2,"0");
-  return `${m}-${d}`;
+function toMMDDLocal(d){
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${m}-${day}`;
+}
+/* Parse "YYYY-MM-DD" from <input type="date"> as a LOCAL date.
+   Set time to noon to dodge DST-midnight edge cases. */
+function fromInputLocal(value){
+  if(!value){ return new Date(); }
+  const [y,m,d] = value.split('-').map(Number);
+  return new Date(y, m-1, d, 12, 0, 0);
+}
+/* Today for the date input, as local yyyy-mm-dd */
+function todayInputValue(){
+  return toYMDLocal(new Date());
 }
 function titleCase(s){ return s.replace(/\b([a-z])/g, m=>m.toUpperCase()); }
 
@@ -166,28 +174,26 @@ const includeOfficialEl = document.getElementById('includeOfficial');
 const includeFunEl = document.getElementById('includeFun');
 const bundleEl = document.getElementById('bundle');
 
-dateEl.value = fmtDateInput();
+dateEl.value = todayInputValue();
 COUNTRY_LIST.forEach(([code,name])=>{
   const o=document.createElement('option'); o.value=code; o.textContent=`${name} (${code})`;
   countryEl.appendChild(o);
 });
 
 /* ---------- core ---------- */
-async function fetchOfficial(date, country){
-  // Nager.Date: /PublicHolidays/{year}/{country}
-  // We'll fetch year list and filter to the selected date.
-  const y = date.getFullYear();
+async function fetchOfficial(dateLocal, country){
+  // Nager.Date returns ISO dates (YYYY-MM-DD). We'll compare with our local YMD string.
+  const y = dateLocal.getFullYear();
   const url = `https://date.nager.at/api/v3/PublicHolidays/${y}/${country}`;
   const res = await fetch(url, {mode:'cors'});
   if(!res.ok) throw new Error(`Nager.Date ${res.status}`);
   const all = await res.json();
-  const iso = ymd(date);
-  return all.filter(h=>h.date===iso).map(h=>h.name);
+  const ymdLocal = toYMDLocal(dateLocal); // local-safe
+  return all.filter(h=>h.date===ymdLocal).map(h=>h.name);
 }
 
-function fetchFun(date){
-  const names = FUN_HOLIDAYS[mmdd(date)] || [];
-  return names.slice();
+function fetchFun(dateLocal){
+  return (FUN_HOLIDAYS[toMMDDLocal(dateLocal)] || []).slice();
 }
 
 function nounFromName(name){
@@ -195,7 +201,6 @@ function nounFromName(name){
   for(const key in TEMPLATES){
     if(low.includes(key)) return TEMPLATES[key];
   }
-  // fallback: last meaningful word
   const tokens = low.match(/[a-z]+/g) || [];
   let noun = "hero";
   for(let i=tokens.length-1;i>=0;i--){
@@ -207,7 +212,6 @@ function nounFromName(name){
 }
 function pickEmojis(noun){
   const arr = EMOJI[noun] || EMOJI.default;
-  // 1–2 random emojis
   const copy = arr.slice(); const out=[];
   const n = Math.min(2, Math.max(1, Math.floor(Math.random()*2)+1));
   for(let i=0;i<n;i++){ out.push(copy[Math.floor(Math.random()*copy.length)]); }
@@ -225,20 +229,20 @@ async function generate(){
   holidaysEl.innerHTML = "";
   outputEl.textContent = "";
 
-  const date = new Date(dateEl.value || Date.now());
+  const dateLocal = fromInputLocal(dateEl.value);
   const country = countryEl.value || "US";
   let names = new Set();
 
   try{
     if(includeOfficialEl.checked){
-      (await fetchOfficial(date, country)).forEach(n=>names.add(n));
+      (await fetchOfficial(dateLocal, country)).forEach(n=>names.add(n));
     }
   }catch(e){
     console.warn(e);
     statusEl.textContent = "Official holidays unavailable; showing fun holidays only.";
   }
   if(includeFunEl.checked){
-    fetchFun(date).forEach(n=>names.add(n));
+    fetchFun(dateLocal).forEach(n=>names.add(n));
   }
 
   const list = [...names];
@@ -276,10 +280,9 @@ function copyOut(){
 /* ---------- UI wiring ---------- */
 document.getElementById('go').addEventListener('click', generate);
 document.getElementById('today').addEventListener('click', ()=>{
-  dateEl.value = fmtDateInput(); generate();
+  dateEl.value = todayInputValue(); generate();
 });
 document.getElementById('shuffle').addEventListener('click', ()=>{
-  // re-roll emojis only
   const pills = [...document.querySelectorAll('.pill')].map(p=>p.textContent);
   if(pills.length===0){ return; }
   let messages = pills.map(craftMessage);
@@ -295,5 +298,3 @@ document.getElementById('regenerate').addEventListener('click', generate);
 // initial render
 generate();
 </script>
-</body>
-</html>
